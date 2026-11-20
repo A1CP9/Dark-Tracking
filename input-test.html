@@ -1,0 +1,20 @@
+<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/png" href="icons/musashi.png"><link rel="apple-touch-icon" href="icons/musashi.png"><title>DARK TRACKING — اختبار الإدخال</title>
+<style>body{background:#080b12;color:#e9eef7;font:18px system-ui;max-width:850px;margin:40px auto;padding:20px;line-height:1.8}button,a{color:#a5ee54}button{background:#202e41;padding:14px;border:1px solid #42546c;border-radius:8px;font:inherit}pre{background:#101722;padding:20px;white-space:pre-wrap}li{margin:12px 0}</style>
+<h1>DARK TRACKING • تشخيص الإدخال</h1><p>اختبار محلي للأزرار وحركة الماوس داخل الصفحة. لا يرسل شيئًا إلى السوني ولا يحرك مؤشر النظام. الحركة المعروضة آخر حدث ماوس، وليست عصا تحكم.</p>
+<button id="start">بدء الاختبار</button> <button id="stop">إيقاف وتحرير الكل</button><pre id="state" dir="ltr" aria-live="polite"></pre>
+<h2>اختبار يد متصلة بالكمبيوتر</h2><p>اضغط بدء الاختبار ثم اضغط زرًا في اليد وحرّك العصا.</p><pre id="pad" dir="ltr"></pre><ol><li>ابدأ واضغط W وD معًا ثم اتركهما؛ يجب أن تصبح keys فارغة.</li><li>اضغط زر الماوس واتركه؛ يجب أن تصبح buttons فارغة.</li><li>أثناء الضغط على W انتقل لنافذة أخرى؛ عند الرجوع يجب أن يظهر active: false وقوائم فارغة. العودة لا تعيد التشغيل تلقائيًا.</li><li>ابدأ مجددًا ثم اضغط Escape؛ يجب أن يتوقف ويصفّر الحركة.</li></ol>
+<p>سجّل المتصفح ونظام التشغيل ونتيجة كل خطوة. نجاحها يثبت التقاط الإدخال محليًا فقط؛ اتصال Remote Play والمصادقة وMW4 ما زالت غير مختبرة.</p><a href="index.html">الرجوع إلى مختبر الكشف</a>
+<script src="input-monitor.js"></script><script>
+const state=document.getElementById('state');
+const monitor=new InputMonitor(window,document,s=>state.textContent=JSON.stringify(s,null,2));
+document.getElementById('start').onclick=()=>monitor.start();
+document.getElementById('stop').onclick=()=>monitor.stop();monitor.emit();
+setInterval(()=>{
+ const output=document.getElementById('pad');
+ if(!monitor.active){output.textContent='متوقف';return;}
+ try {
+  const pads=Array.from(navigator.getGamepads()).filter(p=>p && p.connected);
+  output.textContent=pads.map(p=>p.id+'\nButtons: '+p.buttons.flatMap((b,i)=>b.pressed?[i]:[]).join(', ')+'\nAxes: '+p.axes.map(v=>v.toFixed(2)).join(', ')).join('\n') || 'لم تظهر يد متصلة';
+ } catch {output.textContent='قراءة اليد غير متاحة في هذا المتصفح';}
+},100);
+</script></html>

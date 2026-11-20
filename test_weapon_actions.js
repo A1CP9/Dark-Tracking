@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict');
+const {WeaponActions,DoubleSwap}=require('./remote-pad');
+const actions=new WeaponActions();
+const options={katm:true,katmTime:80,rapid:true,rapidPeriod:100,recoil:true,recoilPower:30};
+const tick=t=>actions.apply(['L2','R2'],[],[0,.8],options,t);
+assert.deepEqual(tick(0),{buttons:['R2'],edges:[],right:[0,1]});
+assert.deepEqual(tick(50).buttons,[]);
+assert.deepEqual(tick(85).buttons,['L2']);
+assert.deepEqual(tick(100).buttons,['R2']);
+actions.reset();
+assert.deepEqual(tick(110).buttons,['R2']);
+const raw=actions.apply(['L2','R2'],[['L2',true]],[-1,-1],{},115);
+assert.deepEqual(raw,{buttons:['L2','R2'],edges:[['L2',true]],right:[-1,-1]});
+const yy=new DoubleSwap();
+assert.equal(yy.update(true,false,true,0,120),true);
+assert.equal(yy.update(false,false,true,100,120),true);
+assert.equal(yy.update(false,false,true,120,120),false);

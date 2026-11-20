@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict');
+const {Reader,defaults,DoubleSwap}=require('./remote-pad');
+const pad={connected:true,index:0,id:'test',mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({pressed:false}))};
+const reader=new Reader();
+pad.buttons[0].pressed=true;
+assert.deepEqual(reader.read(pad,defaults).buttons,[]);
+pad.buttons[0].pressed=false;reader.read(pad,defaults);
+pad.buttons[1].pressed=true;pad.axes=[.1,-.5,.7,0];
+const custom={...defaults,CROSS:1,CIRCLE:0};
+assert.deepEqual(reader.read(pad,custom),{left:[0,-.5],right:[.7,0],buttons:['CROSS']});
+reader.read(null,custom);
+assert.deepEqual(reader.read(pad,custom).buttons,[]);
+const yy=new DoubleSwap();
+assert.deepEqual([0,80,160,240,320].map(t=>yy.update(true,false,true,t)),[true,false,true,false,false]);
+yy.reset();assert.equal(yy.update(false,true,true,0),true);
+console.log('PASS pad mapping, neutral rearm, axes, disconnect, double swap and quick tap');

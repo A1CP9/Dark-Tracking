@@ -1,0 +1,60 @@
+<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DARK TRACKING | ساحة محلية</title><link rel="icon" href="icons/musashi.png"><style>label{display:inline-flex;gap:.5em;align-items:center;margin:.3em .6em}fieldset{margin-block:1em;padding:.8em}body{max-width:800px;margin:2em auto;background:#101722;color:white;font:18px system-ui;padding:1em}canvas{width:100%;image-rendering:pixelated;border:1px solid #889}button{font:inherit}a{color:#ae5}</style>
+<h1>ساحة اختبار محلية</h1><p>اضغط داخل الساحة لتبدأ. اضبط الأزرار أدناه وحرّك الماوس داخل الساحة. الأخضر مركز التصويب واللون المحدد علامة الاختبار. خروج المؤشر يوقف التجربة.</p><label>لون العلامة <input id="arenaColor" type="color" value="#ff000a"></label><label><input type="checkbox" id="assist"> تفعيل التصحيح</label><fieldset><legend>محاكاة السلاح داخل الساحة</legend>
+<label><input id="rapid" type="checkbox">Rapid Fire</label> <label><input id="katm" type="checkbox">كاتم القنص (تجريبي)</label> <label><input id="yy" type="checkbox">تبديل مزدوج (YY)</label> <label><input id="stabilize" type="checkbox">تعويض الارتداد تلقائيًا</label>
+<p>يمكن تخصيص الحركة والإطلاق والتصويب والتبديل أدناه. رمز السلاح أعلى اليسار.</p>
+<label><input type="checkbox" id="adsOnly" checked> التصحيح أثناء التصويب فقط</label><label>قوة الالتقاط الأولي <input id="acquire" type="range" min="0" max="100" value="100"></label><label>قوة متابعة الحركة <input id="gain" type="range" min="0" max="100" value="25"></label>
+<label>ثبات القفل قرب المركز <input id="lock" type="range" min="0" max="100" value="100"></label>
+<label>نطاق الالتقاط بالبكسل <input id="radius" type="number" min="1" max="185" value="90"></label>
+<label>موضع العلامة <select id="zone"><option value="chest">الصدر (وسط العلامة)</option><option value="head">الرأس (أعلى العلامة)</option></select></label></fieldset><fieldset><legend>أزرار الساحة المحلية</legend><div id="bindings"></div><button id="resetKeys">استعادة أزرار الساحة الافتراضية</button><output id="bindStatus" role="status"></output></fieldset><canvas id="scene" width="160" height="90" tabindex="0"></canvas><output id="status"></output><p><a id="returnGame" href="remote.html#mw4">العودة إلى ملف اللعبة</a></p><script>if(["#warzone","#apex","#fortnite"].includes(location.hash))document.getElementById("returnGame").href="remote.html"+location.hash;</script>
+<script src="tracker.js"></script><script src="arena-kit.js"></script><script src="bindings.js"></script><script src="arena.js"></script><script>
+const game=new Arena(), canvas=document.querySelector('canvas'), ctx=canvas.getContext('2d');
+const kit=new ArenaKit.Kit(), get=id=>document.getElementById(id);
+const syncColor=()=>{game.rgb=ColorTracker.rgb(get('arenaColor').value);game.detector.reset();game.engaged=false;};
+ColorTracker.bindColor(get('arenaColor'),syncColor);syncColor();
+const keys=new Set(), marker=[{x:118,y:58}];
+let active=false, dx=0, dy=0;
+function stop(){if(kit.returnAt!==null)kit.slot^=1;kit.reset();game.engaged=false;active=false;keys.clear();dx=dy=0;}
+canvas.oncontextmenu=e=>e.preventDefault();
+let storage=null;
+try{storage=window.localStorage;}catch{}
+let bindings=ArenaBindings.read(storage);
+const titles={left:'حركة يسار',right:'حركة يمين',fire:'إطلاق',aim:'تصويب',swap:'تبديل'};
+const keyNames={Mouse0:'الماوس الأيسر',Mouse1:'عجلة الماوس',Mouse2:'الماوس الأيمن'};
+function persist(){
+ try{storage.setItem('dark-arena-bindings',JSON.stringify(bindings));get('bindStatus').textContent='حُفظت الأزرار.';}
+ catch{get('bindStatus').textContent='تطبق الأزرار لهذه الجلسة فقط.';}
+}
+function buildControls(){
+ const panel=get('bindings');panel.replaceChildren();
+ for(const [action,title] of Object.entries(titles)){
+  const label=document.createElement('label'), select=document.createElement('select');
+  label.append(title+' ');
+  for(const code of ArenaBindings.options)select.add(new Option(keyNames[code]||code,code));
+  select.value=bindings[action];label.append(select);panel.append(label);
+  select.onchange=()=>{
+   const next={...bindings,[action]:select.value};
+   if(!ArenaBindings.valid(next)){select.value=bindings[action];get('bindStatus').textContent='هذا الزر مستخدم لوظيفة أخرى.';return;}
+   stop();bindings=next;persist();
+  };
+ }
+}
+get('resetKeys').onclick=()=>{stop();bindings={...ArenaBindings.defaults};persist();buildControls();};
+buildControls();
+canvas.onmousedown=e=>{if(e.button>2)return;e.preventDefault();canvas.focus();active=true;keys.add('Mouse'+e.button);};
+window.addEventListener('mouseup',e=>keys.delete('Mouse'+e.button));
+canvas.onblur=canvas.onmouseleave=window.onblur=stop;
+canvas.onkeydown=e=>{if(active){if(Object.values(bindings).includes(e.code))e.preventDefault();keys.add(e.code);}};
+canvas.onkeyup=e=>keys.delete(e.code);
+const held=action=>ArenaBindings.held(keys,bindings[action]);
+canvas.onmousemove=e=>{if(active){dx+=e.movementX*160/canvas.clientWidth;dy+=e.movementY*90/canvas.clientHeight;}};
+function draw(t){
+ const weapon=kit.advance(t,{fire:active&&held('fire'),ads:active&&(held('aim')||(bindings.aim==='ShiftLeft'&&!Object.values(bindings).includes('Mouse2')&&keys.has('Mouse2'))),swap:active&&held('swap')},{rapid:get('rapid').checked,katm:get('katm').checked,yy:get('yy').checked,stabilize:get('stabilize').checked},game.pixels);
+ const error=game.step({ads:weapon.ads,walk:active?(Number(held('right'))-Number(held('left'))):0,dx:dx+weapon.x,dy:dy+weapon.y},marker,active&&document.querySelector('#assist').checked,t,{adsOnly:get('adsOnly').checked,acquire:Number(get('acquire').value)/100,zone:get('zone').value,gain:Number(get('gain').value)/100,lock:Number(get('lock').value)/100,radius:Number(get('radius').value)});
+ ArenaKit.hud(game.pixels,kit.slot);
+ dx=dy=0;ctx.putImageData(new ImageData(game.pixels,160,90),0,0);
+ ctx.fillStyle='#98ed56';if(weapon.ads)ctx.strokeRect(70,35,20,20);ctx.fillRect(78,45,5,1);ctx.fillRect(80,43,1,5);
+ document.querySelector('#status').textContent=(active?'يعمل':'متوقف')+' • '+weapon.name+' • الطلقات '+kit.shots+' • المسافة عن المركز: '+(error===null?'خارج الرؤية':error.toFixed(1)+' بكسل');
+ requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+</script></html>

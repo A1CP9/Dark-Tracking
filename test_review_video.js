@@ -1,0 +1,57 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const elements=new Map();
+const ctx={clearRect(){},drawImage(){},putImageData(){},getImageData(x,y,width,height){return {width,height,data:new Uint8ClampedArray(width*height*4)};}};
+function element(id){
+ if(!elements.has(id))elements.set(id,{getContext:()=>ctx,pause(){},removeAttribute(){},load(){}});
+ return elements.get(id);
+}
+const env=vm.createContext({document:{getElementById:element},URL:{createObjectURL:()=>'blob:clip',revokeObjectURL(){}},Uint8ClampedArray});
+for(const file of ['tracker.js','score.js','review.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+file,'utf8'),env);
+element('clip').onchange({target:{files:[{name:'match.mp4'}]}});
+const video=element('video');
+Object.assign(video,{readyState:2,seeking:true,videoWidth:320,videoHeight:180,currentTime:3.25});
+const reviewMarkup=fs.readFileSync(__dirname+'/review.html','utf8');
+const defaultColor=reviewMarkup.match(/<input id="reviewColor" type="color" value="(#[0-9a-f]{6})"/i)?.[1];
+assert.equal(defaultColor,'#ff000a');
+assert.match(reviewMarkup,/اللون الافتراضي للكشف هو الأحمر/);
+element('reviewColor').value=defaultColor;
+ctx.getImageData=(x,y,width,height)=>{
+ const data=new Uint8ClampedArray(width*height*4);
+ for(let row=10;row<14;row++)for(let col=10;col<14;col++)data[(row*width+col)*4]=255;
+ return {width,height,data};
+};
+ctx.stroke=ctx.arc=ctx.beginPath=()=>{};
+const click=id=>element(id).onclick();
+click('freeze');click('score');
+assert.equal(vm.runInContext('rows.length',env),0);
+video.seeking=false;click('freeze');video.currentTime=5;click('freeze');click('score');
+assert.equal(vm.runInContext('rows[0].timeSeconds',env),3.25);
+assert.equal(vm.runInContext('rows[0].file',env),'match.mp4');
+video.currentTime=3.25;click('freeze');click('score');
+assert.equal(vm.runInContext('rows.length',env),1);
+element('reviewColor').value='#00ff00';video.currentTime=5;click('freeze');click('score');
+assert.equal(vm.runInContext('rows[1].timeSeconds',env),5);
+assert.match(element('summary').textContent,/الخلفية: 1/);
+assert.match(element('summary').textContent,/لقطات عدو بلا اختيار صحيح: 0/);
+let exported;
+env.Blob=class {constructor(parts){exported=JSON.parse(parts[0]);}};
+env.document.createElement=()=>({click(){}});
+env.setTimeout=()=>{};
+const replacement={files:[{name:'next.mp4'}],value:'next.mp4'};
+env.confirm=()=>false;
+element('clip').onchange({target:replacement});
+assert.equal(replacement.value,'');
+assert.equal(vm.runInContext('rows.length',env),2);
+click('save');
+assert.equal(exported.evaluation.mode,'independent-frames');
+assert.deepEqual(exported.evaluation.options,{requireSingle:true,tolerance:45,minArea:12});
+assert.equal(exported.rows[1].timeSeconds,5);
+assert.deepEqual(exported.rows[0].selection,{x:11.5,y:11.5});
+assert.equal(exported.rows[1].selection,null);
+assert.deepEqual(exported.rows.map(row=>row.color),['#ff000a','#00ff00']);
+console.log('PASS review video seek guard, frozen timestamps and duplicate guard');
+
+env.confirm=()=>{throw Error('Unexpected prompt after export');};
+element('clip').onchange({target:replacement});
+assert.equal(vm.runInContext('rows.length',env),0);
+console.log('PASS source switch protects unsaved rows and permits replacement after export');

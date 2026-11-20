@@ -1,0 +1,9 @@
+<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="icons/musashi.png"><title>DARK TRACKING • تقييم لقطات اللعب</title>
+<style>body{max-width:850px;margin:2em auto;padding:1em;background:#101722;color:white;font:17px system-ui}canvas{width:100%;touch-action:none;background:#000}button,select,input{padding:.5em;margin:.3em}a{color:#ae5}</style>
+<h1>تقييم لقطات اللعب</h1><p>اختر صورًا أو فيديو من جهازك. قبل كشف النتيجة، ارسم مستطيلًا حول كل عدو وزميل وعنصر واجهة ذي صلة. اترك اللقطة فارغة إذا خلت منها. اللون الافتراضي للكشف هو الأحمر ‎#FF000A‎. يمكنك تغييره من خانة لون الكشف.</p>
+<label>فيديو اللعب <input id="clip" type="file" accept="video/*"></label>
+<div id="player" hidden><video id="video" controls playsinline muted style="max-width:100%;max-height:320px"></video><button id="freeze">اختيار الإطار المعروض للتقييم</button></div>
+<label>صور اللعب <input id="files" type="file" multiple accept="image/*"></label><select id="label"><option value="enemy">عدو</option><option value="ally">زميل</option><option value="hud">واجهة</option><option value="unknown">لاعب غير معروف الفريق</option></select><button id="undo">تراجع عن آخر مستطيل</button>
+<canvas id="surface" width="640" height="360"></canvas><p id="msg" role="status">اختر لقطات للبدء.</p>
+<p id="summary" role="status"></p><label>لون الكشف <input id="reviewColor" type="color" value="#ff000a"></label><button id="score">اعتماد اللقطة وكشف النتيجة</button><button id="next">اللقطة التالية</button><button id="save">تنزيل تقرير JSON</button><a href="index.html">الرئيسية</a>
+<script src="tracker.js"></script><script src="score.js"></script><script src="review.js"></script></html>
